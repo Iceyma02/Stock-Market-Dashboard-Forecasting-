@@ -1,7 +1,3 @@
-Say less fam, here’s a **clean, professional README template** you can drop straight into your repo and just customize 👌🏽
-
----
-
 ```markdown
 # 📈 Stock Market Dashboard & Forecasting
 
@@ -22,8 +18,6 @@ It includes:
 ---
 
 ## 📂 Repository Structure
-```
-
 Stock-Market-Dashboard-Forecasting/
 │── DATA/          <- Raw and cleaned datasets (CSV, Excel)
 │── NOTEBOOKS/     <- Jupyter notebooks for EDA, modeling, forecasting
