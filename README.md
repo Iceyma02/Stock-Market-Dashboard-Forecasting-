@@ -10,6 +10,7 @@ The app allows you to:
 - Switch between real market data or fallback sample data
 
 ```
+---
 🚀 Demo
  
 ---
