@@ -14,10 +14,10 @@ The app allows you to:
 🚀 Demo
 
 ### Dashboard
-![Dashboard Screenshot](screenshots/dashboard.png)
+![Dashboard Screenshot](Screenshots/dashboard.png)
 
 ### Forecast 
-![Forecast Screenshot](screenshots/forecast1.png)
+![Forecast Screenshot](Screenshots/forecast1.png)
 
 ---
 
