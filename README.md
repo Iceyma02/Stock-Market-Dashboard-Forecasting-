@@ -21,7 +21,7 @@ The app allows you to:
 
 stock-market-dashboard-forecast/
 
-│  
+│ 
 ├── app.py               
 ├── requirements.txt      
 ├── README.md             
