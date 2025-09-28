@@ -94,6 +94,6 @@ It should not be considered financial advice. Always do your own research.
 ## 👤 Author
 
 * GitHub: [@yourusername](https://github.com/yourusername)
-* LinkedIn: Anesu Manjengwa(https://linkedin.com/in/yourprofile)
+* LinkedIn: Anesu Manjengwa(http://linkedin.com/in/anesu-manjengwa-684766247)
 
 ````
