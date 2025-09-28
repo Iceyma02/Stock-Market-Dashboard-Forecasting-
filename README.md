@@ -1,75 +1,60 @@
 ```markdown
-# 📈 Stock Market Dashboard & Forecasting
+📈 Stock Market Dashboard & Forecasting
 
-A **Streamlit-powered dashboard** that transforms raw stock market data into clear, actionable insights.  
-This project focuses on the **entire analytics pipeline**: from data ingestion and cleaning, to visualization, forecasting, and interactive dashboards.  
+An interactive stock market dashboard built with **Python, Streamlit, Plotly, and yfinance**.  
+The app allows you to:
 
----
-
-## 🚀 Project Overview
-The goal of this project is to analyze stock market trends and build an interactive dashboard for **data-driven decision making**.  
-It includes:
-- Data ingestion and preprocessing  
-- Exploratory Data Analysis (EDA)  
-- Visualization of trends and patterns  
-- Predictive forecasting using statistical and ML models  
-- Interactive dashboard for insights  
+- View historical stock data for AAPL, MSFT, GOOGL, AMZN, TSLA
+- Analyze price trends, moving averages, and key statistics
+- Generate simple forecasts using Linear Regression, Moving Averages, or Projections
+- Switch between **real market data** or fallback **sample data**
 
 ---
 
-## 📂 Repository Structure
+ 🚀 Demo
+ 
+---
+
+📂 Repository Structure
 Stock-Market-Dashboard-Forecasting/
-│── DATA/          <- Raw and cleaned datasets (CSV, Excel)
-│── NOTEBOOKS/     <- Jupyter notebooks for EDA, modeling, forecasting
-│── DASHBOARDS/    <- Streamlit app, Power BI, or Tableau dashboards
-│── REPORT/        <- Project summary reports (PDF, Markdown)
-│── LICENSE        <- License file
-│── README.md      <- Project documentation
-
+│
+├── app.py
+├── requirements.txt
+├── README.md 
+├── screenshots
+└── data
 ````
 
 ---
 
-## 📊 Dataset
-- **Source**: [Add dataset source here, e.g., Yahoo Finance API, Kaggle]  
-- **Features**:  
+📊 Dataset
+- Source: yFinance
+- Features:  
   - Date  
   - Open, High, Low, Close  
   - Volume  
-  - [Any extra features you engineered]  
+      
+---
+
+💻 Tech Stack
+
+-Python
+-Streamlit
+-Plotly
+-yfinance
+-scikit-learn
+-pandas / numpy
 
 ---
 
-## 🛠️ Tech Stack
-- **Programming**: Python (Pandas, NumPy, Matplotlib, Seaborn)  
-- **Forecasting**: statsmodels, scikit-learn, Prophet (optional)  
-- **Dashboarding**: Streamlit / Power BI  
-- **Version Control**: Git & GitHub  
+📦 How to Run
 
----
-
-## 🔍 Key Insights
-- [Write 2–3 bullet points about trends discovered]  
-- [Add forecasting accuracy results]  
-- [Highlight dashboard usability for decision making]  
-
----
-
-## 📸 Screenshots
-_Add dashboard or chart screenshots here for recruiters to see quickly._  
-Example:  
-
-![Dashboard Screenshot](link-to-your-screenshot.png)
-
----
-
-## 📦 How to Run
-1. Clone the repo  
+1. Clone the repo
+   
    ```bash
    git clone https://github.com/Iceyma02/Stock-Market-Dashboard-Forecasting.git
    cd Stock-Market-Dashboard-Forecasting
 ````
-
 2. Install dependencies
 
    ```bash
@@ -78,9 +63,16 @@ Example:
 3. Run the Streamlit app
 
    ```bash
-   streamlit run DASHBOARDS/app.py
+streamlit run app.py
    ```
 
+📊 Features
+
+Stock Selection: Choose from AAPL, MSFT, GOOGL, AMZN, TSLA
+Interactive Charts: Plotly charts with hover tooltips
+Moving Averages: 20-day and 50-day moving averages
+Forecasting: Predict next 7–90 days with simple models
+Risk Disclaimer: Educational purposes only
 ---
 
 ## 📑 Report
