@@ -21,11 +21,11 @@ The app allows you to:
 
 stock-market-dashboard-forecast/
 │
-├── app.py                # Streamlit app
-├── requirements.txt      # Dependencies
-├── README.md             # Documentation
-├── screenshots/          # Screenshots of the app
-└── data/                 # (Optional) sample datasets
+├── app.py               
+├── requirements.txt      
+├── README.md             
+├── screenshots/         
+└── data/
 
 ````
 
@@ -93,8 +93,6 @@ It should not be considered financial advice. Always do your own research.
 ## 👤 Author
 
 * GitHub: [@yourusername](https://github.com/yourusername)
-* LinkedIn: [Your Name](https://linkedin.com/in/yourprofile)
+* LinkedIn: Anesu Manjengwa(https://linkedin.com/in/yourprofile)
 
 ````
-
-Wanna me cook you a **ready-made `.gitignore`** file too (to keep your venv, cache files, etc. clean)?
