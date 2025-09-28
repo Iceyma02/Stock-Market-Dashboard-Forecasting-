@@ -93,7 +93,7 @@ It should not be considered financial advice. Always do your own research.
 
 ## 👤 Author
 
-* GitHub: [@yourusername](https://github.com/yourusername)
+* GitHub: @Iceyma02(https://github.com/Iceyma02)
 * LinkedIn: Anesu Manjengwa(http://linkedin.com/in/anesu-manjengwa-684766247)
 
 ````
