@@ -10,10 +10,8 @@ The app allows you to:
 - Switch between real market data or fallback sample data
 
 ```
----
 🚀 Demo
  
----
 📂 Repository Structure
 Stock-Market-Dashboard-Forecasting/
 │
@@ -22,7 +20,6 @@ Stock-Market-Dashboard-Forecasting/
 ├── README.md 
 ├── screenshots
 └── data
-````
 
 ---
 
@@ -56,7 +53,7 @@ Stock-Market-Dashboard-Forecasting/
 ````
 2. Install dependencies
 
-   ```bash
+ ```bash
    pip install -r requirements.txt
    ```
 3. Run the Streamlit app
@@ -73,30 +70,3 @@ Moving Averages: 20-day and 50-day moving averages
 Forecasting: Predict next 7–90 days with simple models
 Risk Disclaimer: Educational purposes only
 ---
-
-## 📑 Report
-
-A detailed report of methodology and findings is available in the **REPORT/** folder.
-
----
-
-## 📜 License
-
-This project is licensed under the MIT License – see the [LICENSE](LICENSE) file for details.
-
----
-
-## 👤 Author
-
-* **Anesu "Icey" Manjengwa**
-  📧 \[Add your email]
-  🔗 \[LinkedIn/GitHub/Portfolio links]
-
-```
-
----
-
-👉🏽 If you fill this in properly (especially dataset source, screenshots, and insights), your repo will look **ready for recruiters**.  
-
-Want me to also give you a **short version of this README** for smaller projects (so not every repo looks too heavy)?
-```
