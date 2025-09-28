@@ -7,9 +7,8 @@ The app allows you to:
 - View historical stock data for AAPL, MSFT, GOOGL, AMZN, TSLA
 - Analyze price trends, moving averages, and key statistics
 - Generate simple forecasts using Linear Regression, Moving Averages, or Projections
-- Switch between **real market data** or fallback **sample data**
+- Switch between real market data or fallback sample data
 
----
 ```
 🚀 Demo
  
