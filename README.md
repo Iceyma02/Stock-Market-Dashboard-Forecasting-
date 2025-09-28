@@ -12,9 +12,6 @@ The app allows you to:
 ---
 
 🚀 Demo
-<img width="1300" height="617" alt="Screenshot 2025-09-29 004017" src="https://github.com/user-attachments/assets/ae9ea014-fcf6-4add-baaf-8c9b5a532389" />
-<img width="1302" height="587" alt="Screenshot 2025-09-29 004109" src="https://github.com/user-attachments/assets/b1fb62ad-485c-476f-95e7-894ea574dfcb" />
-<img width="1333" height="461" alt="Screenshot 2025-09-29 004138" src="https://github.com/user-attachments/assets/d04bd020-9819-4b86-8d58-a01af26c4bd8" />
 
 ---
 
