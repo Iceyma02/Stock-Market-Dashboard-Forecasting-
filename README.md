@@ -13,7 +13,7 @@ The app allows you to:
 🚀 Demo
 
 ### Dashboard
-![Dashboard Screenshot](screenshots/main dashboard.png)
+![Dashboard Screenshot](screenshots/dashboard.png)
 
 
 📂 Project Structure
