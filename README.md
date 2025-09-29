@@ -15,11 +15,10 @@ The app allows you to:
 ![Main Dashboard](Screenshots/dashboard.png)
 
 ## Price Analysis
-![Price Analysis](./Screenshots/forecast1.png)
+![Price Analysis](Screenshots/forecast1.png)
 
 ## Forecasting Interface
-![Forecast Settings](./Screenshots/forecast2.png)
-
+![Forecast Settings](Screenshots/forecast2.png)
 📂 Project Structure
 
 ```
