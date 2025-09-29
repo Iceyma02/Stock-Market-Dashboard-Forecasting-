@@ -16,8 +16,6 @@ The app allows you to:
 ### Dashboard
 ![Dashboard Screenshot](Screenshots/dashboard.png)
 
-### Forecast 
-![Forecast Screenshot](Screenshots/forecast1.png)
 
 ---
 
