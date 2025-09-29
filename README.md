@@ -16,8 +16,6 @@ The app allows you to:
 ![Dashboard Screenshot](https://github.com/Iceyma02/Stock-Market-Dashboard-Forecasting-/blob/main/Screenshots/dashboard.png)
 
 
----
-
 📂 Project Structure
 
 ```
