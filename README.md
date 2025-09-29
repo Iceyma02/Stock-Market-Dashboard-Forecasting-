@@ -10,7 +10,7 @@ The app allows you to:
 - Switch between **real market data** or fallback **sample data**
 
 
-```markdown
+markdown
 ![Description of the image](Screenshots/dashboard.png)
 
 📂 Project Structure
