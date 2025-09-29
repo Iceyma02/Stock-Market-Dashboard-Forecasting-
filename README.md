@@ -14,7 +14,7 @@ The app allows you to:
 🚀 Demo
 
 ### Dashboard
-![Dashboard Screenshot](Screenshots/dashboard.png)
+![Screenshot](Screenshots/dashboard.png)
 
 
 ---
