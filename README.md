@@ -9,10 +9,6 @@ The app allows you to:
 - Generate simple forecasts using Linear Regression, Moving Averages, or Projections
 - Switch between **real market data** or fallback **sample data**
 
-
-markdown
-![Description of the image](Screenshots/dashboard.png)
-
 📂 Project Structure
 
 ```
