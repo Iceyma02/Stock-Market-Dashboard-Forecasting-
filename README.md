@@ -12,7 +12,7 @@ The app allows you to:
 # Project Screenshots
 
 ## Main Dashboard
-![Main Dashboard](./Screenshots/dashboard.png)
+![Main Dashboard](Screenshots/dashboard.png)
 
 ## Price Analysis
 ![Price Analysis](./Screenshots/forecast1.png)
