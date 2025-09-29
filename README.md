@@ -13,7 +13,7 @@ The app allows you to:
 🚀 Demo
 
 ### Dashboard
-![Dashboard Screenshot](https://github.com/Iceyma02/Stock-Market-Dashboard-Forecasting-/blob/main/Screenshots/dashboard.png)
+![Dashboard Screenshot] https://github.com/Iceyma02/Stock-Market-Dashboard-Forecasting-/blob/main/Screenshots/dashboard.png
 
 
 📂 Project Structure
