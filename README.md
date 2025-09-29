@@ -14,7 +14,7 @@ The app allows you to:
 🚀 Demo
 
 ### Dashboard
-![Screenshot](Screenshots/dashboard.png)
+![Dashboard Screenshot](https://github.com/Iceyma02/Stock-Market-Dashboard-Forecasting-/blob/main/Screenshots/dashboard.png)
 
 
 ---
