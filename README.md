@@ -39,11 +39,11 @@ A comprehensive Streamlit web application for analyzing stock market data and ge
 ## 📸 Screenshots
 
 ### 1. Main Dashboard Overview
-![Dashboard Overview](Screenshots/dashboard-overview.png.png)
+![Dashboard Overview](Screenshots/dashboard-overview.png)
 *The main dashboard showing AAPL stock overview with current price, daily change, and data points count. Features a clean, dark-themed interface with real-time metrics.*
 
 ### 2. Sidebar Configuration
-![Sidebar Settings](Screenshot_2025-10-09_173558.png)
+![Sidebar Settings](Screenshots/sidebar-settings.png)
 *Configuration panel allowing users to:*
 - *Select different stocks (AAPL, MSFT, GOOGL, AMZN, TSLA)*
 - *Adjust forecast duration (7-90 days)*
@@ -51,14 +51,14 @@ A comprehensive Streamlit web application for analyzing stock market data and ge
 - *Access data information and app details*
 
 ### 3. Technical Analysis Charts
-![Technical Analysis](Screenshot_2025-10-09_173659.png)
+![Technical Analysis](Screenshots/technical-charts.png)
 *Advanced charting features including:*
 - *Historical price trends with interactive zoom*
 - *Moving average overlays (20-day and 50-day)*
 - *Clean visualization of price movements over time*
 
 ### 4. Recent Data & Statistics
-![Data & Statistics](Screenshot_2025-10-09_173721.png)
+![Data & Statistics](Screenshots/data-statistics.png)
 *Comprehensive data display featuring:*
 - *Recent trading data in formatted tables*
 - *Key price statistics (All-time High/Low, Average Price)*
@@ -66,7 +66,7 @@ A comprehensive Streamlit web application for analyzing stock market data and ge
 - *Moving average analysis*
 
 ### 5. Forecasting Interface
-![Forecasting Section](Screenshot_2025-10-09_173822.png)
+![Forecasting Section](Screenshots/forecasting-interface.png)
 *Predictive analytics section with:*
 - *Multiple forecasting method selection*
 - *One-click forecast generation*
