@@ -222,3 +222,4 @@ If you encounter any issues or have questions:
 
 * GitHub: @Iceyma02(https://github.com/Iceyma02)
 * LinkedIn: Anesu Manjengwa(http://linkedin.com/in/anesu-manjengwa-684766247)
+*Email: manjengwap10@gmail.com
