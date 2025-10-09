@@ -3,7 +3,7 @@
 A comprehensive Streamlit web application for analyzing stock market data and generating price forecasts. This dashboard provides real-time stock data visualization, technical analysis, and predictive forecasting for major tech stocks.
 
 ## 🚀 Live Demo
-[Add your live Streamlit share link here]
+(https://3z45tljebjsrl4vbm67ji6.streamlit.app/)
 
 ## 📋 Table of Contents
 - [Features](#features)
