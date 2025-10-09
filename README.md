@@ -39,7 +39,7 @@ A comprehensive Streamlit web application for analyzing stock market data and ge
 ## 📸 Screenshots
 
 ### 1. Main Dashboard Overview
-![Dashboard Overview](screenshots/dashboard-overview.png)
+![Dashboard Overview](Screenshots/dashboard-overview.png.png)
 *The main dashboard showing AAPL stock overview with current price, daily change, and data points count. Features a clean, dark-themed interface with real-time metrics.*
 
 ### 2. Sidebar Configuration
