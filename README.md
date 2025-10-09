@@ -17,7 +17,7 @@ A comprehensive Streamlit web application for analyzing stock market data and ge
 - [Contributing](#contributing)
 - [License](#license)
 
-## ✨ Features
+## ✨Features
 
 ### 📊 Real-time Data Analysis
 - **Live Stock Data**: Fetches real-time data for AAPL, MSFT, GOOGL, AMZN, and TSLA
@@ -25,18 +25,18 @@ A comprehensive Streamlit web application for analyzing stock market data and ge
 - **Interactive Charts**: Interactive Plotly charts with hover details
 - **Recent Data Table**: Last 5 trading days data in formatted tables
 
-### 📈 Technical Indicators
+### 📈Technical Indicators
 - **Moving Averages**: 20-day and 50-day moving averages
 - **Price Statistics**: All-time high/low, average price, and volatility metrics
 - **Trend Analysis**: Daily price changes and percentage movements
 
-### 🔮 Predictive Forecasting
+### 🔮Predictive Forecasting
 - **Multiple Methods**: Three different forecasting algorithms
 - **Customizable Periods**: Forecast from 7 to 90 days into the future
 - **Confidence Intervals**: Adjustable confidence levels for predictions
 - **Visual Projections**: Combined historical + forecast charts
 
-## 📸 Screenshots
+## 📸Screenshots
 
 ### 1. Main Dashboard Overview
 ![Dashboard Overview](Screenshots/dashboard-overview.png)
@@ -72,7 +72,7 @@ A comprehensive Streamlit web application for analyzing stock market data and ge
 - *One-click forecast generation*
 - *Risk disclaimer and educational warnings*
 
-## 🛠️ Installation
+## 🛠️Installation
 
 ### Prerequisites
 - Python 3.8 or higher
@@ -122,7 +122,7 @@ The application will open in your default browser at `http://localhost:8501`
 4. **Configure Forecast**: Set your preferred forecast days and confidence level
 5. **Generate Predictions**: Click "Generate Forecast" to see future price projections
 
-## 📁 Project Structure
+## 📁Project Structure
 
 ```
 stock-dashboard/
@@ -138,7 +138,7 @@ stock-dashboard/
 └── .gitignore           # Git ignore file
 ```
 
-## 🔧 Technical Details
+## 🔧Technical Details
 
 ### Data Sources
 - **Primary**: Yahoo Finance API via `yfinance` library
@@ -152,7 +152,7 @@ stock-dashboard/
 - `plotly` - Interactive data visualization
 - `numpy` - Numerical computations
 
-## 📊 Forecasting Methods
+## 📊Forecasting Methods
 
 ### 1. Trend Projection
 - Uses linear regression to identify price trends
@@ -169,7 +169,7 @@ stock-dashboard/
 - Uses historical volatility patterns
 - Suitable for range-bound or volatile stocks
 
-## ⚠️ Risk Disclaimer
+## ⚠️Risk Disclaimer
 
 **Important**: This application is designed for educational and research purposes only. 
 
@@ -179,7 +179,7 @@ stock-dashboard/
 - Always conduct your own research and consult with qualified financial advisors before making investment decisions
 - The developers are not responsible for any financial losses incurred from using this application
 
-## 🤝 Contributing
+## 🤝Contributing
 
 We welcome contributions! Please feel free to submit pull requests or open issues for:
 
@@ -195,11 +195,11 @@ We welcome contributions! Please feel free to submit pull requests or open issue
 4. Push to the branch (`git push origin feature/AmazingFeature`)
 5. Open a Pull Request
 
-## 📄 License
+## 📄License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## 📞 Support
+## 📞Support
 
 If you encounter any issues or have questions:
 
@@ -207,7 +207,7 @@ If you encounter any issues or have questions:
 2. Create a new issue with detailed description
 3. Include relevant screenshots and error messages
 
-## 🚀 Future Enhancements
+## 🚀Future Enhancements
 
 - [ ] Add more stocks and cryptocurrencies
 - [ ] Implement additional technical indicators (RSI, MACD, Bollinger Bands)
