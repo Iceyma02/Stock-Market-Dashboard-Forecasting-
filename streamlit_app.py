@@ -1,761 +1,773 @@
 """
-Stock Market Dashboard & Forecast
-A comprehensive stock analysis tool with price history, technical indicators, and forecasting.
+Mining Production Efficiency Dashboard
+Copyright 2026 Icey M A
+Licensed under Apache License 2.0
 """
 
 import streamlit as st
 import pandas as pd
 import numpy as np
-import plotly.graph_objs as go
 import plotly.express as px
+import plotly.graph_objects as go
 from datetime import datetime, timedelta
-import warnings
-warnings.filterwarnings('ignore')
+import random
+import io
+from plotly.subplots import make_subplots
 
 # ============================================================================
-# PAGE CONFIGURATION
+# CONFIGURATION
 # ============================================================================
-st.set_page_config(
-    page_title="Stock Market Dashboard & Forecast",
-    page_icon="📈",
-    layout="wide",
-    initial_sidebar_state="expanded"
-)
+APP_VERSION = "2.0.0"
+APP_NAME = "Mining Production Excellence Dashboard"
+COMPANY_NAME = "Global Mining Corporation"
 
-# Custom CSS
-st.markdown("""
-<style>
-    .main-header {
-        font-size: 2.5rem;
-        color: #00FF00;
+# ============================================================================
+# SMART DOWNTIME FORMATTING FUNCTIONS
+# ============================================================================
+def format_downtime_context(hours):
+    """
+    Format downtime in the most readable way for mining operations
+    Returns a string with appropriate units and context
+    """
+    if hours < 1:
+        minutes = hours * 60
+        return f"{minutes:.0f} minutes"
+    elif hours < 8:
+        return f"{hours:.1f} hours (less than 1 shift)"
+    elif hours < 24:
+        shifts = hours / 8
+        return f"{hours:.0f} hours ({shifts:.1f} shifts)"
+    elif hours < 48:
+        days = hours / 24
+        shifts = hours / 8
+        return f"{days:.1f} days ({hours:.0f} hours, {shifts:.0f} shifts)"
+    elif hours < 168:  # Less than 1 week
+        days = hours / 24
+        shifts = hours / 8
+        return f"{days:.0f} days ({shifts:.0f} shifts)"
+    else:
+        weeks = hours / 168
+        days = (hours % 168) / 24
+        if days > 0:
+            return f"{weeks:.0f} weeks, {days:.0f} days ({hours:.0f} hours)"
+        else:
+            return f"{weeks:.0f} weeks ({hours:.0f} hours)"
+
+def get_downtime_tooltip(row):
+    """
+    Generate rich tooltip text for downtime hover information
+    """
+    hours = row['duration_hours']
+    days = hours / 24
+    shifts = hours / 8
+    cost = row.get('cost_usd', 0)
+    
+    tooltip = f"<b>{row['downtime_type']}</b><br>"
+    tooltip += f"• Duration: {format_downtime_context(hours)}<br>"
+    tooltip += f"• Hours: {hours:,.0f}<br>"
+    tooltip += f"• Days: {days:.1f}<br>"
+    tooltip += f"• Shifts: {shifts:.0f}<br>"
+    tooltip += f"• Events: {row.get('event_count', 1)}<br>"
+    if cost > 0:
+        tooltip += f"• Cost: ${cost:,.0f}<br>"
+        if hours > 0:
+            tooltip += f"• Cost/Hour: ${cost/hours:,.0f}"
+    return tooltip
+
+# ============================================================================
+# DATA GENERATION - REALISTIC MINING DATA
+# ============================================================================
+@st.cache_data
+def generate_mining_dataset():
+    """
+    Generate comprehensive mining dataset for 2025
+    Returns: production_df, equipment_df, downtime_df
+    """
+    random.seed(42)
+    np.random.seed(42)
+    
+    # Mining equipment specifications
+    EQUIPMENT_SPECS = {
+        "Excavator": {"capacity_range": (200, 800), "utilization": 0.75, "fuel_rate": 80},
+        "Haul Truck": {"capacity_range": (100, 400), "utilization": 0.80, "fuel_rate": 120},
+        "Crusher": {"capacity_range": (300, 1000), "utilization": 0.85, "fuel_rate": 60},
+        "Loader": {"capacity_range": (150, 500), "utilization": 0.78, "fuel_rate": 70},
+        "Drill Rig": {"capacity_range": (50, 200), "utilization": 0.70, "fuel_rate": 50},
+        "Dozer": {"capacity_range": (100, 300), "utilization": 0.65, "fuel_rate": 90},
+    }
+    
+    MATERIALS = ["Iron Ore", "Copper Ore", "Coal", "Gold Ore", "Waste Rock"]
+    SITES = ["North Pit", "South Pit", "East Pit", "West Pit", "Processing Plant"]
+    OPERATORS = [f"OP-{i:04d}" for i in range(1000, 1100)]
+    
+    # Generate equipment
+    equipment_data = []
+    for i in range(1, 31):
+        eq_type = random.choice(list(EQUIPMENT_SPECS.keys()))
+        specs = EQUIPMENT_SPECS[eq_type]
+        
+        equipment_data.append({
+            'equipment_id': f'EQ-{i:03d}',
+            'equipment_name': f'{eq_type} {i}',
+            'equipment_type': eq_type,
+            'model': random.choice(['CAT 797F', 'Komatsu 830E', 'Hitachi EX3600']),
+            'capacity_tph': random.randint(*specs["capacity_range"]),
+            'purchase_date': datetime(2020 + random.randint(0, 5), 
+                                     random.randint(1, 12), random.randint(1, 28)),
+            'last_maintenance': datetime(2025, random.randint(1, 12), random.randint(1, 28)),
+            'status': random.choices(['Operational', 'Maintenance', 'Idle'], 
+                                    weights=[0.75, 0.15, 0.10])[0],
+            'location': random.choice(SITES),
+            'fuel_consumption_lph': specs["fuel_rate"],
+            'operator_skill': random.choices(['High', 'Medium', 'Low'], 
+                                           weights=[0.4, 0.4, 0.2])[0]
+        })
+    
+    df_equipment = pd.DataFrame(equipment_data)
+    
+    # Generate production data
+    production_logs = []
+    start_date = datetime(2025, 1, 1)
+    end_date = datetime(2025, 12, 31)
+    all_dates = pd.date_range(start=start_date, end=end_date, freq='D')
+    
+    for current_date in all_dates:
+        for _, eq in df_equipment.iterrows():
+            if eq['status'] == 'Maintenance' and random.random() < 0.8:
+                continue
+                
+            utilization = EQUIPMENT_SPECS.get(eq['equipment_type'], {}).get('utilization', 0.7)
+            if random.random() > utilization:
+                continue
+            
+            for shift in ['Day', 'Night']:
+                num_events = random.randint(3, 8)
+                for _ in range(num_events):
+                    base_production = eq['capacity_tph'] * random.uniform(0.8, 1.2)
+                    
+                    # Quality based on operator skill
+                    if eq['operator_skill'] == 'High':
+                        quality_weights = [0.8, 0.15, 0.05]
+                    elif eq['operator_skill'] == 'Medium':
+                        quality_weights = [0.5, 0.4, 0.1]
+                    else:
+                        quality_weights = [0.3, 0.5, 0.2]
+                    
+                    production_logs.append({
+                        'equipment_id': eq['equipment_id'],
+                        'timestamp': current_date.replace(hour=random.randint(0, 23)),
+                        'date': current_date.date(),
+                        'shift': shift,
+                        'operator_id': random.choice(OPERATORS),
+                        'material_type': random.choice(MATERIALS),
+                        'quantity': max(0, np.random.normal(base_production, base_production * 0.1)),
+                        'quality_grade': random.choices(['High', 'Medium', 'Low'], 
+                                                       weights=quality_weights)[0],
+                        'location': eq['location'],
+                        'equipment_type': eq['equipment_type']
+                    })
+    
+    df_production = pd.DataFrame(production_logs)
+    
+    # Generate downtime data with realistic durations
+    downtime_events = []
+    for _, eq in df_equipment.iterrows():
+        # Major downtimes (longer events)
+        for _ in range(random.randint(3, 6)):
+            downtime_date = start_date + timedelta(days=random.randint(0, 364))
+            # Generate realistic durations: some short, some long
+            if random.random() < 0.3:  # 30% chance of major event
+                duration_minutes = random.randint(1440, 4320)  # 1-3 days
+            else:
+                duration_minutes = random.randint(120, 720)  # 2-12 hours
+                
+            downtime_events.append({
+                'equipment_id': eq['equipment_id'],
+                'start_time': downtime_date.replace(hour=random.randint(0, 23)),
+                'duration_minutes': duration_minutes,
+                'downtime_type': random.choice(['Mechanical', 'Electrical', 'Hydraulic']),
+                'reason': random.choice(['Component Failure', 'System Overload', 'Wear & Tear']),
+                'cost_usd': random.randint(5000, 25000)
+            })
+        
+        # Minor downtimes (short events)
+        for _ in range(random.randint(10, 20)):
+            downtime_date = start_date + timedelta(days=random.randint(0, 364))
+            downtime_events.append({
+                'equipment_id': eq['equipment_id'],
+                'start_time': downtime_date.replace(hour=random.randint(0, 23)),
+                'duration_minutes': random.randint(30, 180),
+                'downtime_type': random.choice(['Operational', 'Weather', 'Supply Delay']),
+                'reason': random.choice(['Operator Error', 'Weather Conditions', 'Waiting for Parts']),
+                'cost_usd': random.randint(100, 1000)
+            })
+    
+    df_downtime = pd.DataFrame(downtime_events)
+    df_downtime['date'] = pd.to_datetime(df_downtime['start_time']).dt.date
+    
+    return df_production, df_equipment, df_downtime
+
+# ============================================================================
+# KPI CALCULATIONS
+# ============================================================================
+def calculate_oee(production_df, downtime_df, equipment_df):
+    """Calculate Overall Equipment Effectiveness"""
+    if production_df.empty:
+        return 0.0
+    
+    days = production_df['date'].nunique()
+    planned_minutes = days * 24 * 60
+    downtime = downtime_df['duration_minutes'].sum()
+    availability = max(0, (planned_minutes - downtime) / planned_minutes)
+    
+    equipment_capacity = equipment_df.set_index('equipment_id')['capacity_tph'].to_dict()
+    production_df['expected_hourly'] = production_df['equipment_id'].map(equipment_capacity)
+    total_expected = production_df['expected_hourly'].sum() * 8
+    total_actual = production_df['quantity'].sum()
+    performance = total_actual / total_expected if total_expected > 0 else 0
+    
+    quality_map = {'High': 1.0, 'Medium': 0.85, 'Low': 0.6}
+    production_df['quality_score'] = production_df['quality_grade'].map(quality_map)
+    quality = production_df['quality_score'].mean()
+    
+    return round(min(availability * performance * quality * 100, 100), 1)
+
+def calculate_utilization(equipment_df, production_df):
+    """Calculate equipment utilization rate"""
+    if equipment_df.empty:
+        return 0.0
+    active_equipment = production_df['equipment_id'].nunique()
+    return round((active_equipment / len(equipment_df)) * 100, 1)
+
+def calculate_cost_metrics(production_df, downtime_df):
+    """Calculate cost per ton and other financial metrics"""
+    if production_df.empty:
+        return 0.0, 0.0
+    
+    total_production = production_df['quantity'].sum()
+    downtime_cost = downtime_df['cost_usd'].sum() if 'cost_usd' in downtime_df.columns else 0
+    operational_cost = total_production * 15  # $15 per ton operational cost
+    
+    total_cost = downtime_cost + operational_cost
+    cost_per_ton = total_cost / total_production if total_production > 0 else 0
+    
+    return round(cost_per_ton, 2), round(total_cost / 1000, 1)
+
+# ============================================================================
+# MAIN APPLICATION
+# ============================================================================
+def main():
+    # Page Configuration
+    st.set_page_config(
+        page_title=APP_NAME,
+        page_icon="⛏️",
+        layout="wide",
+        initial_sidebar_state="expanded"
+    )
+    
+    # Custom CSS
+    st.markdown("""
+    <style>
+    .main-title {
+        font-size: 2.8rem;
+        background: linear-gradient(90deg, #FF6B00, #FF8C42);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
         text-align: center;
         margin-bottom: 1rem;
+        font-weight: 800;
     }
     .metric-card {
         background: linear-gradient(135deg, #1a202c 0%, #2d3748 100%);
-        padding: 1rem;
-        border-radius: 10px;
-        border-left: 5px solid #00FF00;
+        padding: 1.5rem;
+        border-radius: 12px;
+        border-left: 6px solid #FF6B00;
         color: white;
         text-align: center;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
     }
     .metric-value {
-        font-size: 2rem;
-        font-weight: bold;
+        font-size: 2.5rem;
+        font-weight: 800;
         margin: 0.5rem 0;
     }
     .metric-label {
-        color: #a0aec0;
-        font-size: 0.9rem;
+        color: #cbd5e0;
+        font-size: 1rem;
+        margin-bottom: 0.5rem;
     }
-    .stProgress > div > div > div > div {
-        background-color: #00FF00;
+    .section-header {
+        font-size: 1.8rem;
+        color: #4a90e2;
+        border-bottom: 3px solid #FF6B00;
+        padding-bottom: 0.5rem;
+        margin: 2rem 0 1rem 0;
     }
-</style>
-""", unsafe_allow_html=True)
-
-# ============================================================================
-# TITLE SECTION
-# ============================================================================
-st.markdown('<h1 class="main-header">📊 STOCK MARKET DASHBOARD & FORECAST</h1>', unsafe_allow_html=True)
-st.markdown("### Real-time Analysis & Predictions for Top Tech Stocks")
-
-# ============================================================================
-# SIDEBAR CONFIGURATION
-# ============================================================================
-with st.sidebar:
-    st.image("https://img.icons8.com/color/96/000000/stocks.png", width=80)
-    st.title("📈 Stock Analyzer")
+    </style>
+    """, unsafe_allow_html=True)
     
-    # Stock selection
-    st.subheader("🎯 Stock Selection")
-    ticker = st.selectbox(
-        "Select Stock",
-        ['AAPL', 'MSFT', 'GOOGL', 'AMZN', 'TSLA', 'META', 'NVDA', 'NFLX'],
-        index=0,
-        help="Choose a stock to analyze"
-    )
+    # Sidebar
+    with st.sidebar:
+        st.markdown(f"## 🏭 {COMPANY_NAME}")
+        st.markdown(f"**Version:** {APP_VERSION}")
+        st.markdown("---")
+        
+        # Filters
+        st.subheader("🔍 Filters")
+        
+        date_range = st.date_input(
+            "Date Range",
+            value=(datetime(2025, 1, 1), datetime(2025, 12, 31))
+        )
+        
+        sites = st.multiselect(
+            "Sites",
+            ["North Pit", "South Pit", "East Pit", "West Pit", "Processing Plant"],
+            default=["North Pit", "South Pit"]
+        )
+        
+        equipment_types = st.multiselect(
+            "Equipment Types",
+            ["Excavator", "Haul Truck", "Crusher", "Loader", "Drill Rig", "Dozer"],
+            default=["Excavator", "Haul Truck", "Crusher"]
+        )
+        
+        materials = st.multiselect(
+            "Materials",
+            ["Iron Ore", "Copper Ore", "Coal", "Gold Ore", "Waste Rock"],
+            default=["Iron Ore", "Copper Ore", "Coal"]
+        )
+        
+        st.markdown("---")
+        if st.button("🔄 Refresh Data", use_container_width=True):
+            st.cache_data.clear()
+            st.rerun()
     
-    # Time period selection
-    st.subheader("📅 Time Period")
-    period = st.selectbox(
-        "Select Period",
-        ['1mo', '3mo', '6mo', '1y', '2y', '5y'],
-        index=4,  # Default to 2y
-        help="Choose historical data range"
-    )
+    # Main Content
+    st.markdown(f'<h1 class="main-title">{APP_NAME}</h1>', unsafe_allow_html=True)
     
-    # Convert period to days for display
-    period_days = {
-        '1mo': 30, '3mo': 90, '6mo': 180,
-        '1y': 365, '2y': 730, '5y': 1825
-    }
+    # Load Data
+    df_production, df_equipment, df_downtime = generate_mining_dataset()
     
-    st.markdown("---")
+    # Apply Filters
+    start_date, end_date = pd.to_datetime(date_range[0]), pd.to_datetime(date_range[1])
     
-    # Forecasting settings
-    st.subheader("🔮 Forecast Settings")
-    forecast_days = st.slider(
-        "Days to Forecast",
-        min_value=7,
-        max_value=90,
-        value=30,
-        step=1,
-        help="Number of days to predict"
-    )
+    prod_filtered = df_production[
+        (df_production['timestamp'].dt.date >= start_date.date()) &
+        (df_production['timestamp'].dt.date <= end_date.date()) &
+        (df_production['location'].isin(sites)) &
+        (df_production['equipment_type'].isin(equipment_types)) &
+        (df_production['material_type'].isin(materials))
+    ].copy()
     
-    forecast_method = st.selectbox(
-        "Forecasting Method",
-        ["Linear Regression", "Moving Average Trend", "Simple Projection", "Prophet (Basic)"],
-        index=0,
-        help="Choose forecasting algorithm"
-    )
+    eq_ids = prod_filtered['equipment_id'].unique()
+    equip_filtered = df_equipment[df_equipment['equipment_id'].isin(eq_ids)].copy()
     
-    show_confidence = st.checkbox("Show Confidence Interval", value=True)
+    # Filter downtime data
+    downtime_filtered = df_downtime[
+        (pd.to_datetime(df_downtime['start_time']).dt.date >= start_date.date()) &
+        (pd.to_datetime(df_downtime['start_time']).dt.date <= end_date.date()) &
+        (df_downtime['equipment_id'].isin(eq_ids))
+    ].copy()
     
-    st.markdown("---")
+    # Calculate KPIs
+    oee = calculate_oee(prod_filtered, downtime_filtered, equip_filtered)
+    utilization = calculate_utilization(equip_filtered, prod_filtered)
+    total_production = prod_filtered['quantity'].sum()
+    avg_daily = total_production / max(1, prod_filtered['date'].nunique())
+    cost_per_ton, total_cost_k = calculate_cost_metrics(prod_filtered, downtime_filtered)
     
-    # Technical indicators
-    st.subheader("📊 Technical Indicators")
-    show_ma = st.checkbox("Show Moving Averages", value=True)
-    ma_short = st.slider("Short MA Period", 5, 50, 20) if show_ma else 20
-    ma_long = st.slider("Long MA Period", 20, 200, 50) if show_ma else 50
+    # Key Metrics Display
+    st.markdown('<div class="section-header">📊 Executive Dashboard</div>', unsafe_allow_html=True)
     
-    show_rsi = st.checkbox("Show RSI", value=False)
-    show_macd = st.checkbox("Show MACD", value=False)
+    cols = st.columns(4)
+    metrics = [
+        ("🏆 OEE", f"{oee}%", "Overall Equipment Effectiveness"),
+        ("⛰️ Total Production", f"{total_production:,.0f} T", f"Avg: {avg_daily:,.0f} T/day"),
+        ("⚙️ Utilization", f"{utilization}%", "Equipment Active Rate"),
+        ("💰 Cost Efficiency", f"${cost_per_ton}/T", f"Total: ${total_cost_k}k")
+    ]
     
-    st.markdown("---")
+    for col, (icon, value, label) in zip(cols, metrics):
+        with col:
+            st.markdown(f"""
+            <div class="metric-card">
+                <div class="metric-label">{icon} {label.split(':')[0]}</div>
+                <div class="metric-value">{value}</div>
+                <div style="color: #a0aec0; font-size: 0.9rem;">{label.split(':')[-1] if ':' in label else label}</div>
+            </div>
+            """, unsafe_allow_html=True)
     
-    # Data source info
-    st.subheader("ℹ️ About")
-    st.info(
-        "Data sourced from Yahoo Finance with sample data fallback. "
-        "Forecasts are for educational purposes only."
-    )
+    # Production Analysis
+    st.markdown('<div class="section-header">📈 Production Analysis</div>', unsafe_allow_html=True)
     
-    # Refresh button
-    if st.button("🔄 Refresh Data", use_container_width=True):
-        st.cache_data.clear()
-        st.rerun()
-
-# ============================================================================
-# DATA LOADING FUNCTIONS
-# ============================================================================
-@st.cache_data(ttl=3600)  # Cache for 1 hour
-def load_stock_data(ticker, period='2y'):
-    """Load stock data from Yahoo Finance"""
-    try:
-        import yfinance as yf
-        with st.spinner(f'Loading {ticker} data...'):
-            stock = yf.Ticker(ticker)
-            data = stock.history(period=period)
-            
-            if not data.empty:
-                return data, True
-            return None, False
-    except Exception as e:
-        st.warning(f"Could not load real data: {e}")
-        return None, False
-
-def generate_sample_data(ticker, days=730):
-    """Generate realistic sample data when real data unavailable"""
-    np.random.seed(hash(ticker) % 42)  # Different seed per ticker
-    
-    dates = pd.date_range(
-        start=datetime.now() - timedelta(days=days),
-        end=datetime.now(),
-        freq='D'
-    )
-    
-    # Realistic price ranges for each stock
-    price_ranges = {
-        'AAPL': (140, 200), 'MSFT': (240, 420), 'GOOGL': (80, 160),
-        'AMZN': (100, 190), 'TSLA': (150, 400), 'META': (90, 350),
-        'NVDA': (120, 950), 'NFLX': (300, 700)
-    }
-    
-    low, high = price_ranges.get(ticker, (100, 200))
-    
-    # Generate base price with trend
-    base_trend = np.linspace(0, (high - low) * 0.3, len(dates))
-    
-    # Add seasonality and volatility
-    seasonality = np.sin(np.arange(len(dates)) * 2 * np.pi / 252) * (high - low) * 0.05
-    volatility = np.random.normal(0, (high - low) * 0.02, len(dates))
-    
-    # Cumulative volatility for realistic walk
-    cum_volatility = np.cumsum(volatility) * 0.1
-    
-    close_prices = low + base_trend + seasonality + cum_volatility
-    close_prices = np.maximum(close_prices, low * 0.5)  # Ensure no negative prices
-    
-    # Generate OHLC data
-    data = pd.DataFrame({
-        'Open': close_prices * (1 - np.random.uniform(0, 0.02, len(dates))),
-        'High': close_prices * (1 + np.random.uniform(0, 0.03, len(dates))),
-        'Low': close_prices * (1 - np.random.uniform(0, 0.03, len(dates))),
-        'Close': close_prices,
-        'Volume': np.random.randint(10000000, 100000000, len(dates))
-    }, index=dates)
-    
-    return data
-
-# ============================================================================
-# TECHNICAL INDICATORS
-# ============================================================================
-def calculate_moving_averages(data, short=20, long=50):
-    """Calculate short and long moving averages"""
-    if data is None or data.empty:
-        return None, None
-    ma_short = data['Close'].rolling(window=short).mean()
-    ma_long = data['Close'].rolling(window=long).mean()
-    return ma_short, ma_long
-
-def calculate_rsi(data, period=14):
-    """Calculate Relative Strength Index"""
-    if data is None or data.empty:
-        return None
-    
-    delta = data['Close'].diff()
-    gain = (delta.where(delta > 0, 0)).rolling(window=period).mean()
-    loss = (-delta.where(delta < 0, 0)).rolling(window=period).mean()
-    rs = gain / loss
-    rsi = 100 - (100 / (1 + rs))
-    return rsi
-
-def calculate_macd(data, fast=12, slow=26, signal=9):
-    """Calculate MACD indicator"""
-    if data is None or data.empty:
-        return None, None
-    
-    exp1 = data['Close'].ewm(span=fast, adjust=False).mean()
-    exp2 = data['Close'].ewm(span=slow, adjust=False).mean()
-    macd = exp1 - exp2
-    signal_line = macd.ewm(span=signal, adjust=False).mean()
-    histogram = macd - signal_line
-    return macd, signal_line, histogram
-
-# ============================================================================
-# FORECASTING FUNCTIONS
-# ============================================================================
-def linear_regression_forecast(data, days, confidence=80):
-    """Linear regression based forecast"""
-    from sklearn.linear_model import LinearRegression
-    from sklearn.preprocessing import StandardScaler
-    
-    # Prepare data
-    df = data[['Close']].dropna().reset_index()
-    df['days'] = np.arange(len(df))
-    
-    X = df['days'].values.reshape(-1, 1)
-    y = df['Close'].values
-    
-    # Train model
-    model = LinearRegression()
-    model.fit(X, y)
-    
-    # Predict future
-    future_X = np.arange(len(df), len(df) + days).reshape(-1, 1)
-    predictions = model.predict(future_X)
-    
-    # Calculate confidence intervals (simplified)
-    residuals = y - model.predict(X)
-    std_residuals = np.std(residuals)
-    
-    future_dates = [df['index'].iloc[-1] + timedelta(days=i+1) for i in range(days)]
-    
-    # Create forecast DataFrame
-    forecast = pd.DataFrame({
-        'ds': future_dates,
-        'yhat': predictions,
-        'yhat_lower': predictions - (std_residuals * (1 - confidence/100)),
-        'yhat_upper': predictions + (std_residuals * (1 - confidence/100))
-    })
-    
-    return forecast
-
-def moving_average_forecast(data, days):
-    """Moving average based forecast with trend"""
-    df = data[['Close']].dropna()
-    
-    # Calculate trend from recent data
-    recent = df.tail(30)
-    prices = recent['Close'].values
-    x = np.arange(len(prices))
-    z = np.polyfit(x, prices, 1)
-    trend = z[0]  # Slope
-    
-    last_price = df['Close'].iloc[-1]
-    future_prices = []
-    
-    # Generate forecast with trend and some randomness
-    for i in range(days):
-        # Add trend plus some noise
-        noise = np.random.normal(0, abs(trend) * 0.3)
-        next_price = last_price + trend + noise
-        future_prices.append(next_price)
-        last_price = next_price
-    
-    future_dates = [df.index[-1] + timedelta(days=i+1) for i in range(days)]
-    
-    forecast = pd.DataFrame({
-        'ds': future_dates,
-        'yhat': future_prices,
-        'yhat_lower': [p * 0.95 for p in future_prices],
-        'yhat_upper': [p * 1.05 for p in future_prices]
-    })
-    
-    return forecast
-
-def simple_projection_forecast(data, days):
-    """Simple projection based on historical volatility"""
-    df = data[['Close']].dropna()
-    
-    # Calculate daily returns
-    returns = df['Close'].pct_change().dropna()
-    avg_return = returns.mean()
-    std_return = returns.std()
-    
-    last_price = df['Close'].iloc[-1]
-    future_prices = []
-    
-    # Random walk based on historical volatility
-    for i in range(days):
-        daily_return = np.random.normal(avg_return, std_return)
-        next_price = last_price * (1 + daily_return)
-        future_prices.append(next_price)
-        last_price = next_price
-    
-    future_dates = [df.index[-1] + timedelta(days=i+1) for i in range(days)]
-    
-    forecast = pd.DataFrame({
-        'ds': future_dates,
-        'yhat': future_prices,
-        'yhat_lower': [p * 0.9 for p in future_prices],
-        'yhat_upper': [p * 1.1 for p in future_prices]
-    })
-    
-    return forecast
-
-# ============================================================================
-# MAIN DASHBOARD
-# ============================================================================
-def main():
-    # Load data
-    real_data, is_real = load_stock_data(ticker, period)
-    
-    if real_data is not None and not real_data.empty:
-        data = real_data
-        data_source = "✅ Real Yahoo Finance data"
-    else:
-        data = generate_sample_data(ticker, period_days[period])
-        data_source = "⚠️ Sample data (real unavailable)"
-        is_real = False
-    
-    # Data processing
-    if isinstance(data.columns, pd.MultiIndex):
-        data.columns = data.columns.get_level_values(0)
-    
-    # Calculate indicators
-    ma_short_vals, ma_long_vals = calculate_moving_averages(data, ma_short, ma_long)
-    rsi_vals = calculate_rsi(data) if show_rsi else None
-    macd_vals, signal_vals, hist_vals = calculate_macd(data) if show_macd else (None, None, None)
-    
-    # ========================================================================
-    # KEY METRICS ROW
-    # ========================================================================
-    st.subheader("📊 Key Metrics")
-    
-    col1, col2, col3, col4, col5 = st.columns(5)
-    
-    current_price = data['Close'].iloc[-1]
-    prev_price = data['Close'].iloc[-2] if len(data) > 1 else current_price
-    daily_change = current_price - prev_price
-    daily_change_pct = (daily_change / prev_price) * 100
+    col1, col2 = st.columns([3, 2])
     
     with col1:
-        st.markdown(f"""
-        <div class="metric-card">
-            <div class="metric-label">Current Price</div>
-            <div class="metric-value">${current_price:.2f}</div>
-        </div>
-        """, unsafe_allow_html=True)
+        # Daily trend
+        daily_data = prod_filtered.groupby('date')['quantity'].sum().reset_index()
+        fig = px.line(daily_data, x='date', y='quantity',
+                      title='Daily Production Trend',
+                      labels={'date': 'Date', 'quantity': 'Tons'})
+        fig.update_layout(height=400)
+        st.plotly_chart(fig, use_container_width=True)
     
     with col2:
-        color = "green" if daily_change >= 0 else "red"
-        st.markdown(f"""
-        <div class="metric-card" style="border-left-color: {color};">
-            <div class="metric-label">Daily Change</div>
-            <div class="metric-value">{daily_change:+.2f} ({daily_change_pct:+.2f}%)</div>
-        </div>
-        """, unsafe_allow_html=True)
+        # Material distribution
+        material_data = prod_filtered.groupby('material_type')['quantity'].sum().reset_index()
+        fig = px.pie(material_data, values='quantity', names='material_type',
+                     title='Material Distribution', hole=0.4)
+        fig.update_layout(height=400)
+        st.plotly_chart(fig, use_container_width=True)
+    
+    # Equipment Monitoring
+    st.markdown('<div class="section-header">⚙️ Equipment Monitoring</div>', unsafe_allow_html=True)
+    
+    # Equipment status
+    if not equip_filtered.empty:
+        status_counts = equip_filtered['status'].value_counts()
+        cols = st.columns(len(status_counts))
+        
+        for col, (status, count) in zip(cols, status_counts.items()):
+            with col:
+                color = "#38A169" if status == "Operational" else "#D69E2E" if status == "Idle" else "#E53E3E"
+                icon = "🟢" if status == "Operational" else "🟡" if status == "Idle" else "🔴"
+                st.markdown(f"""
+                <div class="metric-card" style="border-left-color: {color}">
+                    <div class="metric-label">{icon} {status}</div>
+                    <div class="metric-value">{count}</div>
+                    <div style="color: #a0aec0;">Equipment Units</div>
+                </div>
+                """, unsafe_allow_html=True)
+    
+    # OEE by Equipment Type
+    if not prod_filtered.empty:
+        oee_by_type = []
+        for eq_type in equip_filtered['equipment_type'].unique():
+            eq_ids = equip_filtered[equip_filtered['equipment_type'] == eq_type]['equipment_id']
+            prod_sub = prod_filtered[prod_filtered['equipment_id'].isin(eq_ids)]
+            down_sub = downtime_filtered[downtime_filtered['equipment_id'].isin(eq_ids)]
+            oee_val = calculate_oee(prod_sub, down_sub, 
+                                  equip_filtered[equip_filtered['equipment_type'] == eq_type])
+            oee_by_type.append({'Type': eq_type, 'OEE': oee_val})
+        
+        oee_df = pd.DataFrame(oee_by_type)
+        fig = px.bar(oee_df, x='Type', y='OEE', 
+                     title='OEE by Equipment Type',
+                     color='OEE', color_continuous_scale='RdYlGn')
+        fig.update_layout(height=400)
+        st.plotly_chart(fig, use_container_width=True)
+    
+    # ============================================================================
+    # FIXED DOWNTIME ANALYSIS - WITH HOURS AND DAYS ON HOVER
+    # ============================================================================
+    st.markdown('<div class="section-header">🔧 Downtime Analysis</div>', unsafe_allow_html=True)
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+        if not downtime_filtered.empty:
+            # Convert minutes to hours
+            downtime_filtered['duration_hours'] = downtime_filtered['duration_minutes'] / 60
+            
+            # Aggregate by downtime type
+            downtime_by_type = downtime_filtered.groupby('downtime_type').agg({
+                'duration_hours': 'sum',
+                'duration_minutes': 'count',  # Count of events
+                'cost_usd': 'sum'
+            }).reset_index()
+            downtime_by_type.rename(columns={'duration_minutes': 'event_count'}, inplace=True)
+            
+            # Sort by duration
+            downtime_by_type = downtime_by_type.sort_values('duration_hours', ascending=False)
+            
+            # Calculate additional metrics for tooltips
+            downtime_by_type['duration_days'] = downtime_by_type['duration_hours'] / 24
+            downtime_by_type['duration_shifts'] = downtime_by_type['duration_hours'] / 8
+            downtime_by_type['cost_per_hour'] = downtime_by_type['cost_usd'] / downtime_by_type['duration_hours']
+            
+            # Create custom hover text
+            hover_texts = []
+            for _, row in downtime_by_type.iterrows():
+                hover_text = (
+                    f"<b>{row['downtime_type']}</b><br>"
+                    f"• Duration: {format_downtime_context(row['duration_hours'])}<br>"
+                    f"• Hours: {row['duration_hours']:,.0f}<br>"
+                    f"• Days: {row['duration_days']:.1f}<br>"
+                    f"• Shifts: {row['duration_shifts']:.0f}<br>"
+                    f"• Events: {row['event_count']}<br>"
+                    f"• Cost: ${row['cost_usd']:,.0f}<br>"
+                    f"• Cost/Hour: ${row['cost_per_hour']:,.0f}"
+                )
+                hover_texts.append(hover_text)
+            
+            # Create bar chart with HOURS on y-axis
+            fig_downtime = go.Figure()
+            
+            fig_downtime.add_trace(go.Bar(
+                x=downtime_by_type['downtime_type'],
+                y=downtime_by_type['duration_hours'],
+                text=[format_downtime_context(h) for h in downtime_by_type['duration_hours']],
+                textposition='outside',
+                marker=dict(
+                    color=downtime_by_type['duration_hours'],
+                    colorscale='Reds',
+                    showscale=True,
+                    colorbar=dict(title="Hours")
+                ),
+                hovertext=hover_texts,
+                hoverinfo='text',
+                name='Downtime'
+            ))
+            
+            total_hours = downtime_by_type['duration_hours'].sum()
+            total_days = total_hours / 24
+            
+            fig_downtime.update_layout(
+                title=f"⏱️ Downtime by Category - Total: {format_downtime_context(total_hours)}",
+                xaxis_title="Downtime Type",
+                yaxis_title="Duration (Hours)",
+                height=450,
+                template="plotly_dark",
+                showlegend=False
+            )
+            
+            st.plotly_chart(fig_downtime, use_container_width=True)
+            
+            # Summary metrics in mining-friendly format
+            col_a, col_b, col_c, col_d = st.columns(4)
+            with col_a:
+                st.metric("Total Downtime", format_downtime_context(total_hours))
+            with col_b:
+                st.metric("Total Events", f"{downtime_filtered.shape[0]:,}")
+            with col_c:
+                avg_hours = downtime_filtered['duration_hours'].mean()
+                st.metric("Avg Duration", format_downtime_context(avg_hours))
+            with col_d:
+                max_hours = downtime_filtered['duration_hours'].max()
+                st.metric("Longest Event", format_downtime_context(max_hours))
+                
+        else:
+            st.info("No downtime data available")
+
+    with col2:
+        if not downtime_filtered.empty and 'cost_usd' in downtime_filtered.columns:
+            # Cost analysis
+            cost_by_type = downtime_filtered.groupby('downtime_type')['cost_usd'].sum().reset_index()
+            cost_by_type = cost_by_type.sort_values('cost_usd', ascending=False)
+            
+            # Convert to thousands for cleaner display
+            cost_by_type['cost_thousands'] = cost_by_type['cost_usd'] / 1000
+            total_cost = cost_by_type['cost_usd'].sum()
+            
+            # Calculate percentage of total
+            cost_by_type['cost_percent'] = (cost_by_type['cost_usd'] / total_cost * 100).round(1)
+            
+            # Create custom hover text for cost chart
+            cost_hover_texts = []
+            for _, row in cost_by_type.iterrows():
+                hover_text = (
+                    f"<b>{row['downtime_type']}</b><br>"
+                    f"• Total Cost: ${row['cost_usd']:,.0f}<br>"
+                    f"• % of Total: {row['cost_percent']}%<br>"
+                    f"• Thousands: ${row['cost_thousands']:,.0f}K"
+                )
+                cost_hover_texts.append(hover_text)
+            
+            fig_cost = go.Figure()
+            
+            fig_cost.add_trace(go.Bar(
+                x=cost_by_type['downtime_type'],
+                y=cost_by_type['cost_thousands'],
+                text=['$' + str(int(x)) + 'K' for x in cost_by_type['cost_thousands']],
+                textposition='outside',
+                marker=dict(
+                    color=cost_by_type['cost_thousands'],
+                    colorscale='RdYlGn_r',
+                    showscale=True,
+                    colorbar=dict(title="Thousands $")
+                ),
+                hovertext=cost_hover_texts,
+                hoverinfo='text',
+                name='Cost'
+            ))
+            
+            fig_cost.update_layout(
+                title=f"💰 Downtime Cost Analysis - Total: ${total_cost/1e6:.1f}M",
+                xaxis_title="Downtime Type",
+                yaxis_title="Cost (Thousands USD)",
+                height=450,
+                template="plotly_dark",
+                showlegend=False
+            )
+            
+            st.plotly_chart(fig_cost, use_container_width=True)
+            
+            # Cost efficiency metrics
+            col_e, col_f, col_g = st.columns(3)
+            with col_e:
+                st.metric("Total Cost", f"${total_cost/1e6:.1f}M")
+            with col_f:
+                if total_hours > 0:
+                    avg_cost_per_hour = total_cost / total_hours
+                    st.metric("Avg Cost/Hour", f"${avg_cost_per_hour:,.0f}")
+                else:
+                    st.metric("Avg Cost/Hour", "N/A")
+            with col_g:
+                most_costly = cost_by_type.iloc[0]['downtime_type']
+                st.metric("Most Costly", most_costly)
+        else:
+            st.info("No cost data available")
+    
+    # Shift-based downtime analysis
+    if not downtime_filtered.empty:
+        st.markdown('<div class="section-header">🕒 Shift Impact Analysis</div>', unsafe_allow_html=True)
+        
+        # Add shift information
+        downtime_filtered['hour'] = pd.to_datetime(downtime_filtered['start_time']).dt.hour
+        downtime_filtered['shift'] = downtime_filtered['hour'].apply(
+            lambda x: 'Night' if (x >= 18 or x < 6) else 'Day'
+        )
+        
+        shift_summary = downtime_filtered.groupby('shift').agg({
+            'duration_hours': 'sum',
+            'cost_usd': 'sum',
+            'duration_minutes': 'count'
+        }).reset_index()
+        shift_summary.rename(columns={'duration_minutes': 'event_count'}, inplace=True)
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            fig_shift_hours = px.pie(
+                shift_summary, 
+                values='duration_hours', 
+                names='shift',
+                title="Downtime Hours by Shift",
+                hole=0.4
+            )
+            fig_shift_hours.update_traces(
+                textinfo='label+percent',
+                hovertemplate='<b>%{label}</b><br>Hours: %{value:.0f}<br>Percent: %{percent}<extra></extra>'
+            )
+            st.plotly_chart(fig_shift_hours, use_container_width=True)
+        
+        with col2:
+            fig_shift_cost = px.pie(
+                shift_summary, 
+                values='cost_usd', 
+                names='shift',
+                title="Downtime Cost by Shift",
+                hole=0.4
+            )
+            fig_shift_cost.update_traces(
+                textinfo='label+percent',
+                hovertemplate='<b>%{label}</b><br>Cost: $%{value:,.0f}<br>Percent: %{percent}<extra></extra>'
+            )
+            st.plotly_chart(fig_shift_cost, use_container_width=True)
+    
+    # Predictive Maintenance Alerts
+    st.markdown('<div class="section-header">🔔 Predictive Alerts</div>', unsafe_allow_html=True)
+    
+    # Generate alerts based on downtime patterns
+    if not downtime_filtered.empty:
+        # Find equipment with highest downtime
+        top_downtime_equipment = downtime_filtered.groupby('equipment_id').agg({
+            'duration_hours': 'sum',
+            'event_count': 'count'
+        }).reset_index()
+        top_downtime_equipment = top_downtime_equipment.sort_values('duration_hours', ascending=False).head(3)
+        
+        alerts = []
+        for _, eq in top_downtime_equipment.iterrows():
+            eq_id = eq['equipment_id']
+            eq_info = df_equipment[df_equipment['equipment_id'] == eq_id].iloc[0]
+            
+            if eq['duration_hours'] > 100:
+                severity = "High"
+                icon = "🔴"
+            elif eq['duration_hours'] > 50:
+                severity = "Medium"
+                icon = "🟡"
+            else:
+                severity = "Low"
+                icon = "🟢"
+            
+            alerts.append({
+                "equipment": f"{eq_info['equipment_type']} {eq_id}",
+                "issue": f"Total downtime: {format_downtime_context(eq['duration_hours'])}",
+                "severity": severity,
+                "icon": icon
+            })
+        
+        # Add some standard alerts
+        standard_alerts = [
+            {"equipment": "Excavator EQ-007", "issue": "Engine hours exceed threshold", "severity": "High", "icon": "🔴"},
+            {"equipment": "Haul Truck HT-012", "issue": "Brake system degradation", "severity": "High", "icon": "🔴"},
+            {"equipment": "Crusher CR-003", "issue": "Bearing vibration increasing", "severity": "Medium", "icon": "🟡"},
+        ]
+        
+        alerts = standard_alerts + alerts
+        
+        for alert in alerts[:5]:  # Show top 5 alerts
+            with st.expander(f"{alert['icon']} {alert['equipment']} - {alert['issue']}"):
+                st.write(f"**Severity:** {alert['severity']}")
+                st.write("**Action Required:** Schedule maintenance within 48 hours")
+                if st.button(f"Create Work Order", key=f"btn_{alert['equipment']}"):
+                    st.success(f"Work order created for {alert['equipment']}")
+    
+    # Data Export
+    st.markdown('<div class="section-header">📥 Data Export</div>', unsafe_allow_html=True)
+    
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        if st.button("📄 Generate PDF Report", use_container_width=True):
+            st.success("Report generation started!")
+    
+    with col2:
+        # Excel Export
+        output = io.BytesIO()
+        with pd.ExcelWriter(output, engine='openpyxl') as writer:
+            prod_filtered.to_excel(writer, sheet_name='Production', index=False)
+            equip_filtered.to_excel(writer, sheet_name='Equipment', index=False)
+            downtime_filtered.to_excel(writer, sheet_name='Downtime', index=False)
+            
+            # Add summary sheet
+            summary_data = {
+                'Metric': ['OEE', 'Total Production', 'Equipment Utilization', 
+                          'Cost per Ton', 'Avg Daily Production', 'Total Downtime'],
+                'Value': [f"{oee}%", f"{total_production:,.0f} T", 
+                         f"{utilization}%", f"${cost_per_ton}/T",
+                         f"{avg_daily:,.0f} T", format_downtime_context(downtime_filtered['duration_hours'].sum())]
+            }
+            pd.DataFrame(summary_data).to_excel(writer, sheet_name='Summary', index=False)
+        
+        st.download_button(
+            label="📊 Download Excel",
+            data=output.getvalue(),
+            file_name=f"mining_dashboard_{datetime.now().strftime('%Y%m%d')}.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            use_container_width=True
+        )
     
     with col3:
-        week_high = data['High'].tail(5).max()
-        st.markdown(f"""
-        <div class="metric-card">
-            <div class="metric-label">5-Day High</div>
-            <div class="metric-value">${week_high:.2f}</div>
-        </div>
-        """, unsafe_allow_html=True)
+        if st.button("🔄 Refresh Dashboard", use_container_width=True):
+            st.cache_data.clear()
+            st.rerun()
     
-    with col4:
-        week_low = data['Low'].tail(5).min()
-        st.markdown(f"""
-        <div class="metric-card">
-            <div class="metric-label">5-Day Low</div>
-            <div class="metric-value">${week_low:.2f}</div>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    with col5:
-        volume = data['Volume'].iloc[-1]
-        avg_volume = data['Volume'].tail(20).mean()
-        volume_ratio = volume / avg_volume
-        st.markdown(f"""
-        <div class="metric-card">
-            <div class="metric-label">Volume (vs Avg)</div>
-            <div class="metric-value">{volume_ratio:.1f}x</div>
-            <div class="metric-label">Avg: {avg_volume:,.0f}</div>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    st.caption(f"Data source: {data_source} | Last updated: {data.index[-1].strftime('%Y-%m-%d %H:%M')}")
-    
-    # ========================================================================
-    # PRICE CHART
-    # ========================================================================
-    st.subheader(f"📈 {ticker} Stock Price History")
-    
-    fig = go.Figure()
-    
-    # Candlestick or line chart option
-    chart_type = st.radio("Chart Type", ["Candlestick", "Line"], horizontal=True)
-    
-    if chart_type == "Candlestick":
-        fig.add_trace(go.Candlestick(
-            x=data.index,
-            open=data['Open'],
-            high=data['High'],
-            low=data['Low'],
-            close=data['Close'],
-            name='Price',
-            showlegend=False
-        ))
-    else:
-        fig.add_trace(go.Scatter(
-            x=data.index,
-            y=data['Close'],
-            mode='lines',
-            name='Close Price',
-            line=dict(color='#00FF00', width=2),
-            fill='tozeroy',
-            fillcolor='rgba(0,255,0,0.1)'
-        ))
-    
-    # Add moving averages
-    if show_ma and ma_short_vals is not None and ma_long_vals is not None:
-        fig.add_trace(go.Scatter(
-            x=data.index,
-            y=ma_short_vals,
-            mode='lines',
-            name=f'{ma_short}-Day MA',
-            line=dict(color='#FFAA00', width=1.5, dash='dash')
-        ))
-        fig.add_trace(go.Scatter(
-            x=data.index,
-            y=ma_long_vals,
-            mode='lines',
-            name=f'{ma_long}-Day MA',
-            line=dict(color='#FF0000', width=1.5, dash='dash')
-        ))
-    
-    fig.update_layout(
-        title=f"{ticker} Stock Price - {period.upper()}",
-        xaxis_title="Date",
-        yaxis_title="Price (USD)",
-        template="plotly_dark",
-        height=500,
-        hovermode='x unified',
-        xaxis_rangeslider_visible=False
-    )
-    
-    st.plotly_chart(fig, use_container_width=True)
-    
-    # ========================================================================
-    # TECHNICAL INDICATORS
-    # ========================================================================
-    if show_rsi or show_macd:
-        st.subheader("📊 Technical Indicators")
-        
-        if show_rsi and rsi_vals is not None:
-            fig_rsi = go.Figure()
-            fig_rsi.add_trace(go.Scatter(
-                x=data.index,
-                y=rsi_vals,
-                mode='lines',
-                name='RSI',
-                line=dict(color='#FF6B00', width=2)
-            ))
-            
-            # Add overbought/oversold lines
-            fig_rsi.add_hline(y=70, line_dash="dash", line_color="red", opacity=0.5)
-            fig_rsi.add_hline(y=30, line_dash="dash", line_color="green", opacity=0.5)
-            
-            fig_rsi.update_layout(
-                title="Relative Strength Index (RSI)",
-                xaxis_title="Date",
-                yaxis_title="RSI",
-                template="plotly_dark",
-                height=300
-            )
-            
-            st.plotly_chart(fig_rsi, use_container_width=True)
-        
-        if show_macd and macd_vals is not None:
-            fig_macd = go.Figure()
-            fig_macd.add_trace(go.Scatter(
-                x=data.index,
-                y=macd_vals,
-                mode='lines',
-                name='MACD',
-                line=dict(color='#00FF00', width=2)
-            ))
-            fig_macd.add_trace(go.Scatter(
-                x=data.index,
-                y=signal_vals,
-                mode='lines',
-                name='Signal',
-                line=dict(color='#FF6B00', width=2)
-            ))
-            
-            # Add histogram
-            colors = ['red' if val < 0 else 'green' for val in hist_vals]
-            fig_macd.add_trace(go.Bar(
-                x=data.index,
-                y=hist_vals,
-                name='Histogram',
-                marker_color=colors,
-                opacity=0.3
-            ))
-            
-            fig_macd.update_layout(
-                title="MACD Indicator",
-                xaxis_title="Date",
-                yaxis_title="MACD",
-                template="plotly_dark",
-                height=300
-            )
-            
-            st.plotly_chart(fig_macd, use_container_width=True)
-    
-    # ========================================================================
-    # FORECASTING SECTION
-    # ========================================================================
+    # Footer
     st.markdown("---")
-    st.subheader("🔮 Price Forecast")
+    total_downtime_hours = downtime_filtered['duration_hours'].sum() if not downtime_filtered.empty else 0
     
-    col1, col2 = st.columns([1, 3])
-    
-    with col1:
-        st.markdown("### Forecast Settings")
-        st.write(f"**Method:** {forecast_method}")
-        st.write(f"**Forecast Days:** {forecast_days}")
-        st.write(f"**Confidence Interval:** {'Enabled' if show_confidence else 'Disabled'}")
-        
-        if st.button("📊 Generate Forecast", type="primary", use_container_width=True):
-            st.session_state['generate_forecast'] = True
-    
-    with col2:
-        if st.session_state.get('generate_forecast', False):
-            with st.spinner('Generating forecast...'):
-                try:
-                    # Generate forecast based on selected method
-                    if forecast_method == "Linear Regression":
-                        forecast = linear_regression_forecast(data, forecast_days)
-                    elif forecast_method == "Moving Average Trend":
-                        forecast = moving_average_forecast(data, forecast_days)
-                    elif forecast_method == "Simple Projection":
-                        forecast = simple_projection_forecast(data, forecast_days)
-                    else:  # Prophet (simplified)
-                        forecast = linear_regression_forecast(data, forecast_days)  # Placeholder
-                    
-                    # Create forecast plot
-                    fig_forecast = go.Figure()
-                    
-                    # Historical data
-                    fig_forecast.add_trace(go.Scatter(
-                        x=data.index[-90:],  # Last 90 days
-                        y=data['Close'].iloc[-90:],
-                        mode='lines',
-                        name='Historical',
-                        line=dict(color='#00FF00', width=3)
-                    ))
-                    
-                    # Forecast
-                    fig_forecast.add_trace(go.Scatter(
-                        x=forecast['ds'],
-                        y=forecast['yhat'],
-                        mode='lines',
-                        name='Forecast',
-                        line=dict(color='#FF6B00', width=3, dash='dash')
-                    ))
-                    
-                    # Confidence interval
-                    if show_confidence and 'yhat_lower' in forecast.columns:
-                        fig_forecast.add_trace(go.Scatter(
-                            x=pd.concat([forecast['ds'], forecast['ds'][::-1]]),
-                            y=pd.concat([forecast['yhat_upper'], forecast['yhat_lower'][::-1]]),
-                            fill='toself',
-                            fillcolor='rgba(255,107,0,0.2)',
-                            line=dict(color='rgba(255,255,255,0)'),
-                            hoverinfo="skip",
-                            showlegend=True,
-                            name=f'{confidence_interval}% Confidence'
-                        ))
-                    
-                    fig_forecast.update_layout(
-                        title=f"{ticker} - {forecast_days}-Day Price Forecast",
-                        xaxis_title="Date",
-                        yaxis_title="Price (USD)",
-                        template="plotly_dark",
-                        height=400,
-                        hovermode='x unified'
-                    )
-                    
-                    st.plotly_chart(fig_forecast, use_container_width=True)
-                    
-                    # Forecast metrics
-                    col_a, col_b, col_c, col_d = st.columns(4)
-                    
-                    with col_a:
-                        forecast_high = forecast['yhat'].max()
-                        st.metric("Forecast High", f"${forecast_high:.2f}")
-                    
-                    with col_b:
-                        forecast_low = forecast['yhat'].min()
-                        st.metric("Forecast Low", f"${forecast_low:.2f}")
-                    
-                    with col_c:
-                        forecast_end = forecast['yhat'].iloc[-1]
-                        current = data['Close'].iloc[-1]
-                        change = ((forecast_end - current) / current) * 100
-                        st.metric("Expected Return", f"{change:+.1f}%")
-                    
-                    with col_d:
-                        volatility = data['Close'].pct_change().std() * np.sqrt(252) * 100
-                        st.metric("Annual Volatility", f"{volatility:.1f}%")
-                    
-                    # Show forecast table
-                    with st.expander("📋 View Detailed Forecast"):
-                        forecast_display = forecast[['ds', 'yhat']].copy()
-                        forecast_display['ds'] = forecast_display['ds'].dt.strftime('%Y-%m-%d')
-                        forecast_display['yhat'] = forecast_display['yhat'].apply(lambda x: f"${x:.2f}")
-                        forecast_display.columns = ['Date', 'Predicted Price']
-                        st.dataframe(forecast_display, use_container_width=True)
-                    
-                except Exception as e:
-                    st.error(f"Forecast error: {str(e)}")
-    
-    # ========================================================================
-    # STATISTICS & ANALYSIS
-    # ========================================================================
-    st.markdown("---")
-    st.subheader("📊 Statistical Analysis")
-    
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        # Price distribution
-        fig_dist = go.Figure()
-        fig_dist.add_trace(go.Histogram(
-            x=data['Close'],
-            nbinsx=30,
-            name='Price Distribution',
-            marker_color='#00FF00',
-            opacity=0.7
-        ))
-        
-        fig_dist.update_layout(
-            title="Price Distribution",
-            xaxis_title="Price (USD)",
-            yaxis_title="Frequency",
-            template="plotly_dark",
-            height=300
-        )
-        
-        st.plotly_chart(fig_dist, use_container_width=True)
-    
-    with col2:
-        # Returns distribution
-        returns = data['Close'].pct_change().dropna() * 100
-        
-        fig_returns = go.Figure()
-        fig_returns.add_trace(go.Histogram(
-            x=returns,
-            nbinsx=30,
-            name='Returns Distribution',
-            marker_color='#FF6B00',
-            opacity=0.7
-        ))
-        
-        fig_returns.update_layout(
-            title="Daily Returns Distribution (%)",
-            xaxis_title="Return (%)",
-            yaxis_title="Frequency",
-            template="plotly_dark",
-            height=300
-        )
-        
-        st.plotly_chart(fig_returns, use_container_width=True)
-    
-    # Summary statistics table
-    st.subheader("📋 Summary Statistics")
-    
-    stats_data = {
-        'Metric': ['Mean Price', 'Median Price', 'Std Deviation', 'Skewness', 'Kurtosis',
-                  'Max Price', 'Min Price', 'Avg Daily Return', 'Sharpe Ratio (est)'],
-        'Value': [
-            f"${data['Close'].mean():.2f}",
-            f"${data['Close'].median():.2f}",
-            f"${data['Close'].std():.2f}",
-            f"{data['Close'].skew():.3f}",
-            f"{data['Close'].kurtosis():.3f}",
-            f"${data['Close'].max():.2f}",
-            f"${data['Close'].min():.2f}",
-            f"{returns.mean():.3f}%",
-            f"{returns.mean() / returns.std() * np.sqrt(252):.2f}"
-        ]
-    }
-    
-    stats_df = pd.DataFrame(stats_data)
-    st.dataframe(stats_df, use_container_width=True)
-    
-    # ========================================================================
-    # RECENT DATA TABLE
-    # ========================================================================
-    st.subheader("📋 Recent Trading Data")
-    
-    recent = data.tail(10)[['Open', 'High', 'Low', 'Close', 'Volume']].copy()
-    recent.index = recent.index.strftime('%Y-%m-%d')
-    recent['Volume'] = recent['Volume'].apply(lambda x: f"{x:,.0f}")
-    recent = recent.round(2)
-    
-    st.dataframe(recent, use_container_width=True)
-    
-    # ========================================================================
-    # RISK DISCLAIMER
-    # ========================================================================
-    st.markdown("---")
-    st.warning("""
-    **⚠️ Risk Disclaimer:** This dashboard is for educational and informational purposes only. 
-    Stock price forecasts are based on historical data and statistical models. Past performance 
-    does not guarantee future results. Always conduct your own research and consult with a 
-    qualified financial advisor before making investment decisions.
-    """)
+    st.markdown(f"""
+    <div style="text-align: center; color: #718096; font-size: 0.9rem;">
+        <p><strong>{COMPANY_NAME} - Production Excellence System</strong></p>
+        <p>Version {APP_VERSION} | Data Period: {date_range[0].strftime('%Y-%m-%d')} to {date_range[1].strftime('%Y-%m-%d')}</p>
+        <p>Last Updated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</p>
+        <p>Total Downtime: {format_downtime_context(total_downtime_hours)}</p>
+    </div>
+    """, unsafe_allow_html=True)
 
-# ============================================================================
-# RUN THE APP
-# ============================================================================
 if __name__ == "__main__":
     main()
