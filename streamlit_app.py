@@ -12,7 +12,12 @@ import plotly.graph_objects as go
 from datetime import datetime, timedelta
 import random
 import io
+import base64
 from plotly.subplots import make_subplots
+import matplotlib.pyplot as plt
+from fpdf import FPDF
+import tempfile
+import os
 
 # ============================================================================
 # CONFIGURATION
@@ -29,7 +34,9 @@ def format_downtime_context(hours):
     Format downtime in the most readable way for mining operations
     Returns a string with appropriate units and context
     """
-    if hours < 1:
+    if pd.isna(hours) or hours == 0:
+        return "0 minutes"
+    elif hours < 1:
         minutes = hours * 60
         return f"{minutes:.0f} minutes"
     elif hours < 8:
@@ -53,26 +60,120 @@ def format_downtime_context(hours):
         else:
             return f"{weeks:.0f} weeks ({hours:.0f} hours)"
 
-def get_downtime_tooltip(row):
-    """
-    Generate rich tooltip text for downtime hover information
-    """
-    hours = row['duration_hours']
-    days = hours / 24
-    shifts = hours / 8
-    cost = row.get('cost_usd', 0)
+def minutes_to_hours(minutes):
+    """Convert minutes to hours"""
+    return minutes / 60
+
+# ============================================================================
+# PDF REPORT GENERATION
+# ============================================================================
+def generate_pdf_report(prod_df, equip_df, downtime_df, oee, utilization, total_production, cost_per_ton):
+    """Generate a professional PDF report"""
     
-    tooltip = f"<b>{row['downtime_type']}</b><br>"
-    tooltip += f"• Duration: {format_downtime_context(hours)}<br>"
-    tooltip += f"• Hours: {hours:,.0f}<br>"
-    tooltip += f"• Days: {days:.1f}<br>"
-    tooltip += f"• Shifts: {shifts:.0f}<br>"
-    tooltip += f"• Events: {row.get('event_count', 1)}<br>"
-    if cost > 0:
-        tooltip += f"• Cost: ${cost:,.0f}<br>"
-        if hours > 0:
-            tooltip += f"• Cost/Hour: ${cost/hours:,.0f}"
-    return tooltip
+    class PDF(FPDF):
+        def header(self):
+            self.set_font('Arial', 'B', 16)
+            self.cell(0, 10, f'{COMPANY_NAME} - Production Report', 0, 1, 'C')
+            self.set_font('Arial', 'I', 10)
+            self.cell(0, 10, f'Generated: {datetime.now().strftime("%Y-%m-%d %H:%M")}', 0, 1, 'C')
+            self.ln(10)
+        
+        def footer(self):
+            self.set_y(-15)
+            self.set_font('Arial', 'I', 8)
+            self.cell(0, 10, f'Page {self.page_no()}', 0, 0, 'C')
+        
+        def chapter_title(self, title):
+            self.set_font('Arial', 'B', 12)
+            self.set_fill_color(200, 220, 255)
+            self.cell(0, 6, title, 0, 1, 'L', 1)
+            self.ln(4)
+        
+        def chapter_body(self, body):
+            self.set_font('Arial', '', 11)
+            self.multi_cell(0, 5, body)
+            self.ln()
+        
+        def add_metric_row(self, label, value):
+            self.set_font('Arial', 'B', 11)
+            self.cell(60, 8, label, 0, 0)
+            self.set_font('Arial', '', 11)
+            self.cell(0, 8, value, 0, 1)
+    
+    pdf = PDF()
+    pdf.add_page()
+    
+    # Executive Summary
+    pdf.chapter_title("EXECUTIVE SUMMARY")
+    summary = f"""
+    This report provides a comprehensive analysis of mining operations performance.
+    Data period covers {prod_df['date'].nunique()} days of production activity.
+    """
+    pdf.chapter_body(summary)
+    
+    # Key Metrics
+    pdf.chapter_title("KEY PERFORMANCE INDICATORS")
+    pdf.add_metric_row("Overall Equipment Effectiveness (OEE):", f"{oee}%")
+    pdf.add_metric_row("Equipment Utilization:", f"{utilization}%")
+    pdf.add_metric_row("Total Production:", f"{total_production:,.0f} Tons")
+    pdf.add_metric_row("Cost per Ton:", f"${cost_per_ton}")
+    
+    # Production Summary
+    pdf.chapter_title("PRODUCTION SUMMARY")
+    
+    # Material breakdown
+    material_data = prod_df.groupby('material_type')['quantity'].sum().reset_index()
+    pdf.add_metric_row("Iron Ore:", f"{material_data[material_data['material_type']=='Iron Ore']['quantity'].sum():,.0f} T" if 'Iron Ore' in material_data['material_type'].values else "0 T")
+    pdf.add_metric_row("Copper Ore:", f"{material_data[material_data['material_type']=='Copper Ore']['quantity'].sum():,.0f} T" if 'Copper Ore' in material_data['material_type'].values else "0 T")
+    pdf.add_metric_row("Coal:", f"{material_data[material_data['material_type']=='Coal']['quantity'].sum():,.0f} T" if 'Coal' in material_data['material_type'].values else "0 T")
+    pdf.add_metric_row("Gold Ore:", f"{material_data[material_data['material_type']=='Gold Ore']['quantity'].sum():,.0f} T" if 'Gold Ore' in material_data['material_type'].values else "0 T")
+    pdf.add_metric_row("Waste Rock:", f"{material_data[material_data['material_type']=='Waste Rock']['quantity'].sum():,.0f} T" if 'Waste Rock' in material_data['material_type'].values else "0 T")
+    
+    # Downtime Analysis
+    pdf.chapter_title("DOWNTIME ANALYSIS")
+    
+    if not downtime_df.empty:
+        # Convert minutes to hours for the report
+        downtime_df['duration_hours'] = downtime_df['duration_minutes'] / 60
+        downtime_by_type = downtime_df.groupby('downtime_type')['duration_hours'].sum().reset_index()
+        
+        total_hours = downtime_by_type['duration_hours'].sum()
+        pdf.add_metric_row("Total Downtime:", format_downtime_context(total_hours))
+        
+        for _, row in downtime_by_type.iterrows():
+            pdf.add_metric_row(f"  {row['downtime_type']}:", format_downtime_context(row['duration_hours']))
+        
+        if 'cost_usd' in downtime_df.columns:
+            total_cost = downtime_df['cost_usd'].sum()
+            pdf.add_metric_row("Total Downtime Cost:", f"${total_cost:,.0f}")
+            if total_hours > 0:
+                pdf.add_metric_row("Average Cost/Hour:", f"${total_cost/total_hours:,.0f}")
+    else:
+        pdf.chapter_body("No downtime data available for the selected period.")
+    
+    # Equipment Status
+    pdf.chapter_title("EQUIPMENT STATUS")
+    if not equip_df.empty:
+        status_counts = equip_df['status'].value_counts()
+        pdf.add_metric_row("Operational:", f"{status_counts.get('Operational', 0)} units")
+        pdf.add_metric_row("Maintenance:", f"{status_counts.get('Maintenance', 0)} units")
+        pdf.add_metric_row("Idle:", f"{status_counts.get('Idle', 0)} units")
+    
+    # Footer with disclaimer
+    pdf.add_page()
+    pdf.chapter_title("DISCLAIMER")
+    disclaimer = """
+    This report is generated automatically from the Mining Production Efficiency Dashboard.
+    Data is based on operational records and may be subject to revisions.
+    
+    For any questions regarding this report, please contact:
+    operations@globalmining.com
+    
+    CONFIDENTIAL - For internal use only
+    """
+    pdf.chapter_body(disclaimer)
+    
+    return pdf
 
 # ============================================================================
 # DATA GENERATION - REALISTIC MINING DATA
@@ -459,7 +560,7 @@ def main():
         st.plotly_chart(fig, use_container_width=True)
     
     # ============================================================================
-    # FIXED DOWNTIME ANALYSIS - WITH HOURS AND DAYS ON HOVER
+    # FIXED DOWNTIME ANALYSIS - WITH HOURS INSTEAD OF MINUTES
     # ============================================================================
     st.markdown('<div class="section-header">🔧 Downtime Analysis</div>', unsafe_allow_html=True)
 
@@ -467,7 +568,7 @@ def main():
 
     with col1:
         if not downtime_filtered.empty:
-            # Convert minutes to hours
+            # CRITICAL FIX: Convert minutes to hours for display
             downtime_filtered['duration_hours'] = downtime_filtered['duration_minutes'] / 60
             
             # Aggregate by downtime type
@@ -486,7 +587,7 @@ def main():
             downtime_by_type['duration_shifts'] = downtime_by_type['duration_hours'] / 8
             downtime_by_type['cost_per_hour'] = downtime_by_type['cost_usd'] / downtime_by_type['duration_hours']
             
-            # Create custom hover text
+            # Create custom hover text with ALL context
             hover_texts = []
             for _, row in downtime_by_type.iterrows():
                 hover_text = (
@@ -501,12 +602,12 @@ def main():
                 )
                 hover_texts.append(hover_text)
             
-            # Create bar chart with HOURS on y-axis
+            # Create bar chart with HOURS on y-axis (NOT MINUTES)
             fig_downtime = go.Figure()
             
             fig_downtime.add_trace(go.Bar(
                 x=downtime_by_type['downtime_type'],
-                y=downtime_by_type['duration_hours'],
+                y=downtime_by_type['duration_hours'],  # This is in HOURS now
                 text=[format_downtime_context(h) for h in downtime_by_type['duration_hours']],
                 textposition='outside',
                 marker=dict(
@@ -521,12 +622,11 @@ def main():
             ))
             
             total_hours = downtime_by_type['duration_hours'].sum()
-            total_days = total_hours / 24
             
             fig_downtime.update_layout(
                 title=f"⏱️ Downtime by Category - Total: {format_downtime_context(total_hours)}",
                 xaxis_title="Downtime Type",
-                yaxis_title="Duration (Hours)",
+                yaxis_title="Duration (Hours)",  # Explicitly say HOURS
                 height=450,
                 template="plotly_dark",
                 showlegend=False
@@ -674,8 +774,9 @@ def main():
         # Find equipment with highest downtime
         top_downtime_equipment = downtime_filtered.groupby('equipment_id').agg({
             'duration_hours': 'sum',
-            'event_count': 'count'
+            'duration_minutes': 'count'
         }).reset_index()
+        top_downtime_equipment.rename(columns={'duration_minutes': 'event_count'}, inplace=True)
         top_downtime_equipment = top_downtime_equipment.sort_values('duration_hours', ascending=False).head(3)
         
         alerts = []
@@ -722,8 +823,49 @@ def main():
     col1, col2, col3 = st.columns(3)
     
     with col1:
+        # FIXED PDF REPORT GENERATION
         if st.button("📄 Generate PDF Report", use_container_width=True):
-            st.success("Report generation started!")
+            with st.spinner("Generating PDF report..."):
+                try:
+                    # Calculate total downtime hours for the report
+                    total_downtime_hours = downtime_filtered['duration_hours'].sum() if not downtime_filtered.empty else 0
+                    
+                    # Generate PDF
+                    pdf = generate_pdf_report(
+                        prod_filtered, 
+                        equip_filtered, 
+                        downtime_filtered,
+                        oee, 
+                        utilization, 
+                        total_production, 
+                        cost_per_ton
+                    )
+                    
+                    # Save to temporary file
+                    with tempfile.NamedTemporaryFile(delete=False, suffix='.pdf') as tmp_file:
+                        pdf.output(tmp_file.name)
+                        tmp_file_path = tmp_file.name
+                    
+                    # Read the file for download
+                    with open(tmp_file_path, 'rb') as f:
+                        pdf_data = f.read()
+                    
+                    # Clean up temp file
+                    os.unlink(tmp_file_path)
+                    
+                    # Create download button
+                    st.download_button(
+                        label="📥 Download PDF Report",
+                        data=pdf_data,
+                        file_name=f"mining_report_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf",
+                        mime="application/pdf",
+                        use_container_width=True
+                    )
+                    st.success("✅ PDF Report generated successfully!")
+                    
+                except Exception as e:
+                    st.error(f"Error generating PDF: {str(e)}")
+                    st.info("Please install fpdf: pip install fpdf")
     
     with col2:
         # Excel Export
@@ -731,15 +873,22 @@ def main():
         with pd.ExcelWriter(output, engine='openpyxl') as writer:
             prod_filtered.to_excel(writer, sheet_name='Production', index=False)
             equip_filtered.to_excel(writer, sheet_name='Equipment', index=False)
-            downtime_filtered.to_excel(writer, sheet_name='Downtime', index=False)
+            
+            # For downtime, convert minutes to hours in Excel as well
+            downtime_excel = downtime_filtered.copy()
+            if not downtime_excel.empty:
+                downtime_excel['duration_hours'] = downtime_excel['duration_minutes'] / 60
+                downtime_excel['duration_formatted'] = downtime_excel['duration_hours'].apply(format_downtime_context)
+            downtime_excel.to_excel(writer, sheet_name='Downtime', index=False)
             
             # Add summary sheet
+            total_downtime_hours = downtime_filtered['duration_hours'].sum() if not downtime_filtered.empty else 0
             summary_data = {
                 'Metric': ['OEE', 'Total Production', 'Equipment Utilization', 
                           'Cost per Ton', 'Avg Daily Production', 'Total Downtime'],
                 'Value': [f"{oee}%", f"{total_production:,.0f} T", 
                          f"{utilization}%", f"${cost_per_ton}/T",
-                         f"{avg_daily:,.0f} T", format_downtime_context(downtime_filtered['duration_hours'].sum())]
+                         f"{avg_daily:,.0f} T", format_downtime_context(total_downtime_hours)]
             }
             pd.DataFrame(summary_data).to_excel(writer, sheet_name='Summary', index=False)
         
